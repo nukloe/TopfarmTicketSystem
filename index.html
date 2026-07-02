@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Topfarm Ticket</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #0f2d52; --blue: #1a6fa8; --blue-lt: #e8f4fd;
+      --green: #16a34a; --green-dk: #14532d; --green-lt: #dcfce7;
+      --amber: #d97706; --amber-lt: #fef3c7;
+      --red: #dc2626; --red-lt: #fee2e2;
+      --pink: #9d174d; --pink-lt: #fce7f3;
+      --bg: #f0f4f8; --card: #fff; --border: #e2e8f0;
+      --text: #1e293b; --mid: #475569; --muted: #94a3b8;
+      --r: 12px; --rs: 8px;
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+
+    /* ── LOGIN ── */
+    #login-page {
+      min-height: 100vh; background: linear-gradient(135deg,#071a31,#0f2d52 50%,#1a6fa8);
+      display: flex; align-items: center; justify-content: center; padding: 1rem;
+    }
+    .lcard { background: #fff; border-radius: 20px; box-shadow: 0 25px 60px rgba(0,0,0,.35); width: 100%; max-width: 420px; overflow: hidden; }
+    .lhero {
+      background: linear-gradient(145deg,#0f2d52,#1a6fa8);
+      padding: 2.4rem 2rem 1.8rem; text-align: center; position: relative; overflow: hidden;
+    }
+    .lhero::before { content:''; position:absolute; inset:-50%; background: radial-gradient(circle,rgba(255,255,255,.06) 0%,transparent 60%); }
+    .lhero-icon { width:62px;height:62px;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.25);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 1rem;position:relative;z-index:1; }
+    .lhero-title { font-size:1.55rem;font-weight:800;color:#fff;letter-spacing:-.4px;position:relative;z-index:1; }
+    .lhero-sub   { font-size:.82rem;color:rgba(255,255,255,.6);margin-top:.2rem;position:relative;z-index:1; }
+    .lbody { padding:1.75rem 2rem 1.5rem; }
+    .lerr { background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:var(--rs);padding:.6rem .9rem;margin-bottom:1rem;font-size:.82rem;font-weight:600;display:none;gap:.5rem;align-items:center; }
+    .fl { font-size:.75rem;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:.4rem; }
+    .ig { display:flex;align-items:center;border:1.5px solid var(--border);border-radius:var(--rs);overflow:hidden;background:#fff;transition:border-color .2s,box-shadow .2s;margin-bottom:1rem; }
+    .ig:focus-within { border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,111,168,.12); }
+    .ig-ic { padding:0 .7rem;color:var(--muted);font-size:.9rem; }
+    .ig input, .ig select { flex:1;border:none;outline:none;padding:.65rem .4rem;font-size:.88rem;color:var(--text);font-family:inherit;background:transparent; }
+    .ig select { cursor:pointer; }
+    .ig-btn { background:none;border:none;cursor:pointer;padding:0 .7rem;color:var(--muted);font-size:.88rem;display:flex;align-items:center; }
+    .btn-login { width:100%;padding:.75rem;background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;border:none;border-radius:var(--rs);font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .2s; }
+    .btn-login:hover { opacity:.9; }
+    .lfoot { text-align:center;padding:.85rem;font-size:.73rem;color:var(--muted);border-top:1px solid var(--border); }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      position:sticky;top:0;z-index:100;
+      background:linear-gradient(135deg,var(--navy),var(--blue));
+      height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 1.4rem;
+      box-shadow:0 2px 12px rgba(15,45,82,.4);
+    }
+    .tb-brand { display:flex;align-items:center;gap:.7rem; }
+    .tb-logo  { width:34px;height:34px;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.25);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px; }
+    .tb-title { color:#fff;font-size:.95rem;font-weight:800;letter-spacing:-.3px; }
+    .tb-sub   { color:rgba(255,255,255,.5);font-size:.68rem; }
+    .tb-nav   { display:flex;gap:3px; }
+    .tab-btn  { display:flex;align-items:center;gap:5px;padding:6px 15px;background:transparent;border:1.5px solid transparent;border-radius:7px;color:rgba(255,255,255,.7);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit; }
+    .tab-btn:hover  { background:rgba(255,255,255,.12);color:#fff; }
+    .tab-btn.active { background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.28);color:#fff; }
+    .tb-right { display:flex;align-items:center;gap:.55rem; }
+    .uchip { display:flex;align-items:center;gap:.4rem;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:.28rem .7rem;color:rgba(255,255,255,.9);font-size:.75rem;font-weight:600; }
+    .rbadge { background:rgba(255,255,255,.22);border-radius:10px;padding:1px 6px;font-size:.62rem;font-weight:700;color:#fff; }
+    .btn-out { background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.2);border-radius:7px;color:rgba(255,255,255,.8);padding:5px 11px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit; }
+    .btn-out:hover { background:rgba(255,255,255,.2);color:#fff; }
+
+    /* ── PAGES ── */
+    .page { display:none; }
+    .page.active { display:block; }
+
+    /* ── FORM PAGE ── */
+    .fw { max-width:780px;margin:0 auto;padding:1.75rem 1.25rem 4rem; }
+    .sbanner { background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid var(--green);border-radius:var(--rs);padding:.85rem 1rem;margin-bottom:1.1rem;display:none;align-items:center;gap:.7rem;font-size:.86rem; }
+    .sbanner-id { font-family:monospace;font-weight:800;color:var(--green);font-size:.95rem; }
+    .sbanner-x { margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem; }
+    .fhdr { background:#fff;border-radius:var(--r);padding:1.3rem 1.5rem;margin-bottom:.9rem;border-left:5px solid var(--green);display:flex;align-items:center;gap:.9rem;box-shadow:0 1px 3px rgba(0,0,0,.06); }
+    .fhdr-ic { width:44px;height:44px;flex-shrink:0;background:var(--green-lt);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:21px; }
+    .fhdr-t  { font-size:1.05rem;font-weight:800; }
+    .fhdr-s  { font-size:.8rem;color:var(--muted);margin-top:2px; }
+    .fcard   { background:#fff;border-radius:var(--r);padding:1.6rem;box-shadow:0 1px 3px rgba(0,0,0,.06); }
+    .sec-ttl { font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);padding-bottom:.55rem;border-bottom:1px solid var(--border);margin-bottom:.9rem;margin-top:1.4rem; }
+    .sec-ttl:first-child { margin-top:0; }
+    .row2 { display:grid;grid-template-columns:1fr 1fr;gap:.9rem; }
+    .row3 { display:grid;grid-template-columns:1fr 1fr 1fr;gap:.9rem; }
+    .row211 { display:grid;grid-template-columns:1fr 1fr 2fr;gap:.9rem; }
+    .fd { display:flex;flex-direction:column;gap:5px;margin-bottom:.9rem; }
+    .fd:last-child { margin-bottom:0; }
+    .fd label { font-size:.78rem;font-weight:700;color:var(--mid); }
+    .fd label .req { color:var(--red);margin-left:2px; }
+    .fd input, .fd textarea, .fd select {
+      width:100%;padding:.52rem .72rem;border:1.5px solid var(--border);border-radius:var(--rs);
+      font-size:.86rem;color:var(--text);font-family:inherit;outline:none;background:#fff;
+      transition:border-color .15s,box-shadow .15s;
+    }
+    .fd input:focus, .fd textarea:focus, .fd select:focus { border-color:var(--green);box-shadow:0 0 0 3px rgba(22,163,74,.1); }
+    .fd textarea { resize:vertical;min-height:82px;line-height:1.6; }
+    .fd input.ro { background:#f8fafc;color:var(--mid); }
+
+    /* multi-select dropdown */
+    .ms-wrap { position:relative; }
+    .ms-trigger {
+      width:100%;padding:.52rem .72rem;border:1.5px solid var(--border);border-radius:var(--rs);
+      font-size:.86rem;color:var(--text);font-family:inherit;outline:none;background:#fff;
+      cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center;
+      transition:border-color .15s,box-shadow .15s;min-height:2.15rem;
+    }
+    .ms-trigger:focus,.ms-trigger.open { border-color:var(--green);box-shadow:0 0 0 3px rgba(22,163,74,.1); }
+    .ms-trigger .ms-label { flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mid); }
+    .ms-trigger .ms-label.has-val { color:var(--text); }
+    .ms-trigger .ms-arrow { font-size:.7rem;margin-left:.4rem;transition:transform .2s; }
+    .ms-trigger.open .ms-arrow { transform:rotate(180deg); }
+    .ms-panel {
+      position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;
+      border:1.5px solid var(--green);border-radius:var(--rs);box-shadow:0 6px 20px rgba(0,0,0,.12);
+      z-index:200;display:none;max-height:260px;overflow:hidden;flex-direction:column;
+    }
+    .ms-panel.open { display:flex; }
+    .ms-search {
+      padding:.45rem .65rem;border:none;border-bottom:1px solid var(--border);font-size:.83rem;
+      font-family:inherit;outline:none;background:#f8fafc;
+    }
+    .ms-search:focus { background:#fff; }
+    .ms-list { overflow-y:auto;flex:1; }
+    .ms-item {
+      display:flex;align-items:center;gap:.6rem;padding:.45rem .72rem;cursor:pointer;
+      font-size:.84rem;border-bottom:1px solid #f1f5f9;transition:background .1s;
+    }
+    .ms-item:hover { background:#f0fdf4; }
+    .ms-item:last-child { border-bottom:none; }
+    .ms-item input[type=checkbox] { accent-color:var(--green);width:15px;height:15px;flex-shrink:0; }
+    .ms-item .ms-code { color:var(--mid);font-size:.75rem;min-width:2.4rem; }
+    .ms-none { padding:.8rem;text-align:center;font-size:.82rem;color:var(--mid); }
+
+    /* urgency */
+    .urg-row { display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1.1rem; }
+    .uop { padding:.6rem .4rem;border:2px solid var(--border);border-radius:var(--rs);text-align:center;cursor:pointer;transition:all .13s;user-select:none; }
+    .uop:hover { border-color:#94a3b8; }
+    .uop .ue { font-size:1.25rem;display:block;margin-bottom:3px; }
+    .uop .ul { font-size:.76rem;font-weight:700;color:var(--mid); }
+    .uop.us-normal { border-color:var(--green);background:var(--green-lt); }
+    .uop.us-normal .ul { color:#166534; }
+    .uop.us-urgent { border-color:var(--amber);background:var(--amber-lt); }
+    .uop.us-urgent .ul { color:#92400e; }
+    .uop.us-high   { border-color:var(--red);background:var(--red-lt); }
+    .uop.us-high   .ul { color:#991b1b; }
+
+    .btn-sub { width:100%;padding:.82rem;background:linear-gradient(135deg,var(--green-dk),var(--green));color:#fff;border:none;border-radius:var(--rs);font-size:.95rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 3px 10px rgba(22,163,74,.3);transition:opacity .2s; }
+    .btn-sub:hover { opacity:.9; }
+
+    /* ── DASHBOARD ── */
+    .dw { max-width:1200px;margin:0 auto;padding:1.4rem 1.25rem 4rem; }
+    .drow { display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem; }
+    .dtitle { font-size:1.3rem;font-weight:900; }
+    .btn-xl { display:flex;align-items:center;gap:.45rem;padding:.52rem .95rem;background:var(--green);color:#fff;border:none;border-radius:var(--rs);font-size:.83rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 2px 6px rgba(22,163,74,.28);transition:background .15s; }
+    .btn-xl:hover { background:var(--green-dk); }
+
+    /* stats */
+    .sgrid { display:grid;grid-template-columns:repeat(5,1fr);gap:.7rem;margin-bottom:1.1rem; }
+    .scard { background:#fff;border-radius:var(--r);padding:1rem 1.1rem;border-top:3px solid transparent;box-shadow:0 1px 3px rgba(0,0,0,.06); }
+    .scard.sc-all    { border-color:var(--blue); }
+    .scard.sc-pend   { border-color:var(--muted); }
+    .scard.sc-doing  { border-color:var(--amber); }
+    .scard.sc-done   { border-color:var(--green); }
+    .scard.sc-cancel { border-color:var(--pink); }
+    .snum { font-size:1.9rem;font-weight:900;line-height:1;margin-bottom:3px; }
+    .scard.sc-all    .snum { color:var(--blue); }
+    .scard.sc-pend   .snum { color:var(--muted); }
+    .scard.sc-doing  .snum { color:var(--amber); }
+    .scard.sc-done   .snum { color:var(--green); }
+    .scard.sc-cancel .snum { color:var(--pink); }
+    .slbl { font-size:.72rem;font-weight:600;color:var(--muted); }
+
+    /* filter bar */
+    .fbar { background:#fff;border-radius:var(--r);padding:.7rem .9rem;margin-bottom:.9rem;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;gap:.45rem;flex-wrap:wrap;align-items:center; }
+    .fsearch { flex:2;min-width:160px;position:relative; }
+    .fsearch input { width:100%;padding:.42rem .7rem .42rem 1.9rem;border:1.5px solid var(--border);border-radius:var(--rs);font-size:.81rem;color:var(--text);outline:none;font-family:inherit;transition:border-color .2s; }
+    .fsearch input:focus { border-color:var(--blue); }
+    .fsearch-ic { position:absolute;left:.6rem;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.82rem;pointer-events:none; }
+    .fsel { padding:.42rem .6rem;border:1.5px solid var(--border);border-radius:var(--rs);font-size:.8rem;color:var(--mid);background:#fff;outline:none;cursor:pointer;font-family:inherit;transition:border-color .2s; }
+    .fsel:focus { border-color:var(--blue); }
+    .btn-clr { padding:.42rem .8rem;border:1.5px solid var(--border);border-radius:var(--rs);background:#fff;color:var(--mid);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s; }
+    .btn-clr:hover { background:#f1f5f9; }
+
+    /* table card */
+    .tcard { background:#fff;border-radius:var(--r);box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden; }
+    .tcard-hd { padding:.75rem 1.1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between; }
+    .tcard-hdtxt { font-size:.86rem;font-weight:700; }
+    .cchip { background:var(--blue-lt);color:var(--blue);border-radius:20px;padding:2px 9px;font-size:.73rem;font-weight:700; }
+    .tscroll { overflow-x:auto;max-height:58vh; }
+    table.dt { width:100%;border-collapse:collapse;min-width:950px; }
+    table.dt thead th { position:sticky;top:0;z-index:5;background:#f8fafc;padding:.55rem .7rem;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);border-bottom:2px solid var(--border);white-space:nowrap;text-align:left; }
+    table.dt tbody td { padding:.6rem .7rem;font-size:.83rem;color:var(--text);border-bottom:1px solid #f0f4f8;vertical-align:middle; }
+    table.dt tbody tr { transition:background .1s; }
+    table.dt tbody tr:hover td { background:#f0f7ff; }
+    table.dt tbody tr:last-child td { border-bottom:none; }
+
+    .tid  { font-family:monospace;font-weight:700;font-size:.78rem;color:var(--blue); }
+    .clip { max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block; }
+
+    .pbadge { display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border-radius:7px;font-weight:800;font-size:.76rem; }
+    .pA{background:#dbeafe;color:#1d4ed8;} .pB{background:#d1fae5;color:#065f46;}
+    .pC{background:#fef3c7;color:#92400e;} .pD{background:#ede9fe;color:#5b21b6;}
+    .pE{background:#fee2e2;color:#991b1b;} .pF{background:#e0f2fe;color:#075985;}
+
+    .ubadge { display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:.71rem;font-weight:700;white-space:nowrap; }
+    .un{background:var(--green-lt);color:#166534;}
+    .uu{background:var(--amber-lt);color:#92400e;}
+    .uh{background:var(--red-lt);color:#991b1b;}
+
+    .ssel { border:none;border-radius:20px;padding:.23rem .45rem;font-size:.73rem;font-weight:700;cursor:pointer;min-width:118px;appearance:none;-webkit-appearance:none;text-align:center;font-family:inherit;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 6px center;padding-right:18px;transition:box-shadow .2s; }
+    .ssel:focus { outline:none;box-shadow:0 0 0 3px rgba(26,111,168,.15); }
+    .sp{background:#f1f5f9;color:#475569;} .sd{background:#dbeafe;color:#1d4ed8;}
+    .sk{background:var(--green-lt);color:#15803d;} .sc{background:var(--pink-lt);color:var(--pink);}
+
+    .stxt { display:inline-block;padding:.22rem .6rem;border-radius:20px;font-size:.73rem;font-weight:700;white-space:nowrap; }
+
+    .catb { display:inline-block;padding:2px 7px;border-radius:20px;font-size:.71rem;font-weight:700;background:#ede9fe;color:#5b21b6; }
+    .tc { text-align:center; }
+
+    /* empty */
+    .empty { text-align:center;padding:3rem 1rem;color:var(--muted); }
+    .empty-ic { font-size:2.6rem;display:block;margin-bottom:.7rem;opacity:.4; }
+
+    /* toast */
+    .toast { position:fixed;bottom:1.4rem;right:1.4rem;min-width:210px;max-width:320px;padding:.8rem 1rem;border-radius:var(--r);font-size:.86rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.18);display:flex;align-items:center;gap:.55rem;transform:translateY(70px) scale(.95);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);z-index:9999;pointer-events:none; }
+    .toast.show { transform:translateY(0) scale(1);opacity:1; }
+    .tok { background:#052e16;color:#bbf7d0; }
+    .terr{ background:#450a0a;color:#fecaca; }
+
+    @media(max-width:768px){
+      .sgrid { grid-template-columns:repeat(3,1fr); }
+      .row2,.row3,.row211 { grid-template-columns:1fr; }
+      .uchip { display:none; }
+      .tab-btn span:not(.ti) { display:none; }
+    }
+    @media(max-width:500px){ .sgrid { grid-template-columns:repeat(2,1fr); } }
+  </style>
+</head>
+<body>
+
+<!-- ═══════ LOGIN PAGE ═══════ -->
+<div id="login-page">
+  <div class="lcard">
+    <div class="lhero">
+      <div class="lhero-icon">🌿</div>
+      <div class="lhero-title">TOPFARM</div>
+      <div class="lhero-sub">Job Ticket System</div>
+    </div>
+    <div class="lbody">
+      <div id="lerr" class="lerr"><span>⚠️</span><span id="lerr-msg"></span></div>
+      <label class="fl">หัวหน้างาน</label>
+      <div class="ig">
+        <span class="ig-ic">👤</span>
+        <select id="ln">
+          <option value="">— เลือกชื่อ —</option>
+          <option value="เฉลิมศรี ฟตูน">903 — เฉลิมศรี ฟตูน</option>
+          <option value="คำรณ จำปาทอง">906 — คำรณ จำปาทอง</option>
+          <option value="เหรียญศรี จันทร์">907 — เหรียญศรี จันทร์</option>
+          <option value="จุฑารัตน์ ฟตูน">908 — จุฑารัตน์ ฟตูน</option>
+        </select>
+      </div>
+      <label class="fl">รหัสผ่าน</label>
+      <div class="ig">
+        <span class="ig-ic">🔒</span>
+        <input type="password" id="lp" placeholder="กรอกรหัสผ่าน" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
+        <button class="ig-btn" type="button" onclick="togglePwd()">👁</button>
+      </div>
+      <button class="btn-login" onclick="doLogin()">เข้าสู่ระบบ</button>
+    </div>
+    <div class="lfoot">Topfarm Job Ticket System © 2026</div>
+  </div>
+</div>
+
+<!-- ═══════ MAIN APP ═══════ -->
+<div id="app" style="display:none;">
+
+  <header class="topbar">
+    <div class="tb-brand">
+      <div class="tb-logo">🌿</div>
+      <div><div class="tb-title">TOPFARM</div><div class="tb-sub">Job Ticket System</div></div>
+    </div>
+    <nav class="tb-nav">
+      <button class="tab-btn active" id="tb-form" onclick="showPage('form',this)">
+        <span class="ti">📝</span><span>ส่งคำขอ</span>
+      </button>
+      <button class="tab-btn" id="tb-dash" onclick="showPage('dash',this)">
+        <span class="ti">📊</span><span>Dashboard</span>
+      </button>
+    </nav>
+    <div class="tb-right">
+      <button id="db-ind" onclick="openFBSetup()" title="ตั้งค่าการเชื่อมต่อ" style="font-size:.7rem;border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:2px 9px;color:rgba(255,255,255,.8);cursor:pointer;background:rgba(255,255,255,.1);font-family:inherit;">📱 Local</button>
+      <div class="uchip"><span id="tb-name"></span><span class="rbadge" id="tb-role"></span></div>
+      <button class="btn-out" onclick="doLogout()">ออก</button>
+    </div>
+  </header>
+
+  <!-- FORM PAGE -->
+  <div id="page-form" class="page active">
+    <div class="fw">
+
+      <div id="sbanner" class="sbanner">
+        <span>✅</span>
+        <div><strong>ส่งคำขอสำเร็จ!</strong> หมายเลขคำขอ: <span class="sbanner-id" id="sid"></span> — กรุณาจดไว้</div>
+        <button class="sbanner-x" onclick="document.getElementById('sbanner').style.display='none'">✕</button>
+      </div>
+
+      <div class="fhdr">
+        <div class="fhdr-ic">📋</div>
+        <div><div class="fhdr-t">สร้าง Job Ticket ใหม่</div><div class="fhdr-s">กรอกข้อมูลงานให้ครบถ้วน แล้วกดส่งเพื่อแจ้งหัวหน้า</div></div>
+      </div>
+
+      <div class="fcard">
+        <form id="the-form" onsubmit="submitForm(event)" novalidate>
+
+          <div class="sec-ttl">ผู้ส่งคำขอ</div>
+          <div class="row2">
+            <div class="fd">
+              <label>ชื่อผู้ส่งคำขอ</label>
+              <input type="text" id="f-name" class="ro" readonly />
+            </div>
+            <div class="fd">
+              <label>ผู้ร่วมงาน <span class="req">*</span></label>
+              <input type="hidden" id="f-planter" />
+              <div class="ms-wrap" id="ms-planter-wrap">
+                <button type="button" class="ms-trigger" id="ms-trigger" onclick="msToggle()">
+                  <span class="ms-label" id="ms-label">— เลือกผู้ร่วมงาน —</span>
+                  <span class="ms-arrow">▼</span>
+                </button>
+                <div class="ms-panel" id="ms-panel">
+                  <input type="text" class="ms-search" id="ms-search" placeholder="ค้นหาชื่อ..." oninput="msFilter(this.value)" />
+                  <div class="ms-list" id="ms-list"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sec-ttl">รายละเอียดงาน</div>
+          <div class="fd">
+            <label>รายละเอียดงาน <span class="req">*</span></label>
+            <textarea id="f-details" placeholder="อธิบายรายละเอียดงานให้ชัดเจน..." required></textarea>
+          </div>
+          <div class="fd">
+            <label>ผลลัพท์ที่คาดไว้</label>
+            <textarea id="f-expect" placeholder="ระบุผลลัพท์หรือเป้าหมายที่คาดหวังจากงานนี้..."></textarea>
+          </div>
+          <div class="row211">
+            <div class="fd">
+              <label>แปลง <span class="req">*</span></label>
+              <select id="f-plot" required>
+                <option value="">— เลือก —</option>
+                <option value="A">แปลง A</option>
+                <option value="B">แปลง B</option>
+                <option value="C">แปลง C</option>
+                <option value="D">แปลง D</option>
+                <option value="E">แปลง E</option>
+                <option value="F">แปลง F</option>
+                <option value="N">แปลง N</option>
+              </select>
+            </div>
+            <div class="fd">
+              <label>กิจกรรม <span class="req">*</span></label>
+              <select id="f-cat" required></select>
+            </div>
+            <div class="fd">
+              <label>วัตถุดิบที่ใช้ <span class="req">*</span></label>
+              <input type="text" id="f-mat" placeholder="เช่น ปุ๋ย N-P-K 50 กก., ยาฆ่าแมลง 2 ลิตร" required />
+            </div>
+          </div>
+
+          <div class="sec-ttl">กำหนดเวลา</div>
+          <div class="row3">
+            <div class="fd">
+              <label>วันที่ <span class="req">*</span></label>
+              <input type="date" id="f-date" required />
+            </div>
+            <div class="fd">
+              <label>เวลาเริ่มต้น <span class="req">*</span></label>
+              <input type="time" id="f-start" required />
+            </div>
+            <div class="fd">
+              <label>เวลาสิ้นสุด <span class="req">*</span></label>
+              <input type="time" id="f-end" required />
+            </div>
+          </div>
+
+          <div class="sec-ttl">ระดับความเร่งด่วน</div>
+          <div class="urg-row">
+            <div class="uop" data-val="normal" onclick="pickUrg(this)">
+              <span class="ue">✅</span><span class="ul">ปกติ</span>
+            </div>
+            <div class="uop" data-val="urgent" onclick="pickUrg(this)">
+              <span class="ue">⚡</span><span class="ul">ด่วน</span>
+            </div>
+            <div class="uop" data-val="high" onclick="pickUrg(this)">
+              <span class="ue">🔴</span><span class="ul">ด่วนมาก</span>
+            </div>
+          </div>
+          <input type="hidden" id="f-urg" />
+
+          <button type="submit" class="btn-sub">✓&nbsp;&nbsp;ส่งคำขอ</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD PAGE -->
+  <div id="page-dash" class="page">
+    <div class="dw">
+
+      <div class="drow">
+        <div class="dtitle">Dashboard — รายการคำขอทั้งหมด</div>
+        <button class="btn-xl" onclick="exportExcel()">📥 Export Excel</button>
+      </div>
+
+      <div class="sgrid">
+        <div class="scard sc-all">   <div class="snum" id="st-all">0</div><div class="slbl">ทั้งหมด</div></div>
+        <div class="scard sc-pend">  <div class="snum" id="st-pend">0</div><div class="slbl">รอดำเนินการ</div></div>
+        <div class="scard sc-doing"> <div class="snum" id="st-doing">0</div><div class="slbl">กำลังทำ</div></div>
+        <div class="scard sc-done">  <div class="snum" id="st-done">0</div><div class="slbl">เสร็จแล้ว</div></div>
+        <div class="scard sc-cancel"><div class="snum" id="st-cancel">0</div><div class="slbl">ยกเลิก</div></div>
+      </div>
+
+      <div class="fbar">
+        <div class="fsearch">
+          <span class="fsearch-ic">🔍</span>
+          <input type="text" id="fq" placeholder="ค้นหาชื่อ, รายละเอียด, วัตถุดิบ..." oninput="renderDash()" />
+        </div>
+        <select class="fsel" id="fp" onchange="renderDash()">
+          <option value="">ทุกแปลง</option>
+          <option value="A">แปลง A</option><option value="B">แปลง B</option>
+          <option value="C">แปลง C</option><option value="D">แปลง D</option>
+          <option value="E">แปลง E</option><option value="F">แปลง F</option>
+          <option value="N">แปลง N</option>
+        </select>
+        <select class="fsel" id="fc" onchange="renderDash()"></select>
+        <select class="fsel" id="fs" onchange="renderDash()">
+          <option value="">ทุกสถานะ</option>
+          <option value="pending">รอดำเนินการ</option>
+          <option value="doing">กำลังทำ</option>
+          <option value="done">เสร็จแล้ว</option>
+          <option value="cancelled">ยกเลิก</option>
+        </select>
+        <select class="fsel" id="fu" onchange="renderDash()">
+          <option value="">ทุกระดับ</option>
+          <option value="high">ด่วนมาก</option>
+          <option value="urgent">ด่วน</option>
+          <option value="normal">ปกติ</option>
+        </select>
+        <button class="btn-clr" onclick="clearF()">ล้าง</button>
+      </div>
+
+      <div class="tcard">
+        <div class="tcard-hd">
+          <span class="tcard-hdtxt">รายการคำขอ</span>
+          <span class="cchip" id="cnt">0 รายการ</span>
+        </div>
+        <div class="tscroll">
+          <table class="dt">
+            <thead>
+              <tr>
+                <th style="padding-left:1.1rem;">ID</th>
+                <th>ผู้ส่ง</th>
+                <th>รายละเอียด</th>
+                <th class="tc">แปลง</th>
+                <th>กิจกรรม</th>
+                <th>ผู้ร่วมงาน</th>
+                <th>วัตถุดิบ</th>
+                <th>ผลลัพท์ที่คาดไว้</th>
+                <th>วันที่</th>
+                <th>เวลา</th>
+                <th>ความเร่งด่วน</th>
+                <th>สถานะ</th>
+              </tr>
+            </thead>
+            <tbody id="dtbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<div id="toast" class="toast"></div>
+
+<!-- Firebase Setup Modal -->
+<div id="fb-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:#fff;border-radius:18px;padding:1.75rem;max-width:460px;width:100%;box-shadow:0 25px 60px rgba(0,0,0,.3);">
+    <div style="font-size:1.05rem;font-weight:800;margin-bottom:.25rem;">⚙️ ตั้งค่าแชร์ข้อมูล (Firebase)</div>
+    <div style="font-size:.8rem;color:#64748b;margin-bottom:1.1rem;">ใส่ค่าจาก Firebase Console เพื่อให้ PC และมือถือเห็นข้อมูลเดียวกัน</div>
+
+    <label style="font-size:.73rem;font-weight:700;color:#475569;display:block;margin-bottom:.3rem;">API Key</label>
+    <input id="fb-key" type="text" placeholder="AIzaSy..." style="width:100%;padding:.5rem .7rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.82rem;margin-bottom:.8rem;outline:none;box-sizing:border-box;font-family:monospace;" />
+
+    <label style="font-size:.73rem;font-weight:700;color:#475569;display:block;margin-bottom:.3rem;">Database URL</label>
+    <input id="fb-url" type="text" placeholder="https://your-project-default-rtdb.asia-southeast1.firebasedatabase.app" style="width:100%;padding:.5rem .7rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.82rem;margin-bottom:1.1rem;outline:none;box-sizing:border-box;font-family:monospace;" />
+
+    <div style="display:flex;gap:.55rem;margin-bottom:1rem;">
+      <button onclick="saveFBSetup()" style="flex:1;padding:.65rem;background:#16a34a;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:.88rem;font-family:inherit;">✓ บันทึก &amp; เชื่อมต่อ</button>
+      <button onclick="clearFBSetup()" style="padding:.65rem .9rem;background:#fee2e2;color:#991b1b;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:.82rem;font-family:inherit;">ล้างค่า</button>
+      <button onclick="closeFBSetup()" style="padding:.65rem .9rem;background:#f1f5f9;color:#475569;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:.82rem;font-family:inherit;">ยกเลิก</button>
+    </div>
+
+    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:.8rem;font-size:.75rem;color:#0369a1;line-height:1.7;">
+      <strong>วิธีหาค่า:</strong><br>
+      1. เปิด <strong>console.firebase.google.com</strong><br>
+      2. สร้าง Project → Build → <strong>Realtime Database</strong> → Create<br>
+      3. เลือก <strong>Test mode</strong> → Enable<br>
+      4. ⚙️ Project settings → Your apps → Web (<code>&lt;/&gt;</code>) → ลงทะเบียน<br>
+      5. คัดลอก <strong>apiKey</strong> และ <strong>databaseURL</strong> มาใส่ด้านบน
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── CONFIG ── */
+const BOSS_PWD = 'tf9999', TEAM_PWD = '1234';
+const SS_KEY  = 'topfarm_sess';
+
+/* ══════════════════════════════════════════════════
+   FIREBASE CONFIG — ใส่ค่าจาก Firebase Console
+   https://console.firebase.google.com
+   ══════════════════════════════════════════════════ */
+const FB_CFG = {
+  apiKey:      "AIzaSyExample-ReplaceWithYourKey",
+  databaseURL: "https://your-project-default-rtdb.asia-southeast1.firebasedatabase.app",
+};
+
+/* ── LOOKUP ── */
+const ULB = { normal:'ปกติ', urgent:'ด่วน', high:'ด่วนมาก' };
+const UCL = { normal:'un', urgent:'uu', high:'uh' };
+const SLB = { pending:'รอดำเนินการ', doing:'กำลังทำ', done:'เสร็จแล้ว', cancelled:'ยกเลิก' };
+const SCL = { pending:'sp', doing:'sd', done:'sk', cancelled:'sc' };
+const SIC = { pending:'⏳', doing:'▶', done:'✅', cancelled:'❌' };
+
+/* ── DB (Firebase + localStorage fallback) ── */
+let _tickets = [];
+let _fbRef   = null;
+let _online  = false;
+
+function getSavedFBCfg() {
+  try { return JSON.parse(localStorage.getItem('topfarm_fb_cfg')); } catch { return null; }
+}
+
+function initDB() {
+  const saved = getSavedFBCfg();
+  const cfg   = (saved && saved.apiKey) ? saved : FB_CFG;
+
+  const ok = cfg.apiKey &&
+    !cfg.apiKey.includes('Example') &&
+    !cfg.apiKey.includes('Replace') &&
+    cfg.databaseURL &&
+    !cfg.databaseURL.includes('your-project');
+
+  if (!ok) {
+    _online = false;
+    try { _tickets = JSON.parse(localStorage.getItem('topfarm_tickets_v3')) || []; } catch { _tickets = []; }
+    updateDbIndicator(false);
+    return;
+  }
+
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    _fbRef = firebase.database().ref('tickets');
+    _fbRef.on('value', snap => {
+      _online = true;
+      const raw = snap.val() || {};
+      _tickets = Object.values(raw).sort((a, b) => (b.id || 0) - (a.id || 0));
+      updateDbIndicator(true);
+      if (document.getElementById('page-dash').classList.contains('active')) renderDash();
+    }, () => {
+      _online = false;
+      updateDbIndicator(false);
+    });
+  } catch(e) {
+    _online = false;
+    try { _tickets = JSON.parse(localStorage.getItem('topfarm_tickets_v3')) || []; } catch { _tickets = []; }
+    updateDbIndicator(false);
+  }
+}
+
+function openFBSetup() {
+  const saved = getSavedFBCfg();
+  document.getElementById('fb-key').value = (saved && saved.apiKey) ? saved.apiKey : '';
+  document.getElementById('fb-url').value = (saved && saved.databaseURL) ? saved.databaseURL : '';
+  document.getElementById('fb-modal').style.display = 'flex';
+}
+function closeFBSetup() { document.getElementById('fb-modal').style.display = 'none'; }
+function saveFBSetup() {
+  const k = document.getElementById('fb-key').value.trim();
+  const u = document.getElementById('fb-url').value.trim();
+  if (!k || !u) { alert('กรุณาใส่ค่า API Key และ Database URL ให้ครบ'); return; }
+  localStorage.setItem('topfarm_fb_cfg', JSON.stringify({ apiKey: k, databaseURL: u }));
+  closeFBSetup();
+  location.reload();
+}
+function clearFBSetup() {
+  if (!confirm('ล้างค่า Firebase และใช้ข้อมูลบนเครื่องนี้เท่านั้น?')) return;
+  localStorage.removeItem('topfarm_fb_cfg');
+  closeFBSetup();
+  location.reload();
+}
+
+function updateDbIndicator(online) {
+  const el = document.getElementById('db-ind');
+  if (!el) return;
+  el.textContent = online ? '☁ Cloud' : '📱 Local';
+  el.title = online ? 'ข้อมูลแชร์ทุกเครื่อง (Firebase)' : 'ข้อมูลเฉพาะเครื่องนี้ (ไม่ได้ตั้งค่า Firebase)';
+  el.style.background = online ? 'rgba(22,163,74,.25)' : 'rgba(255,255,255,.1)';
+}
+
+const db = () => _tickets;
+
+async function dbAdd(ticket) {
+  _tickets.unshift(ticket);
+  if (_online) {
+    try {
+      await _fbRef.child(String(ticket.id)).set(ticket);
+    } catch(e) {
+      _online = false;
+      updateDbIndicator(false);
+      localStorage.setItem('topfarm_tickets_v3', JSON.stringify(_tickets));
+    }
+  } else {
+    localStorage.setItem('topfarm_tickets_v3', JSON.stringify(_tickets));
+  }
+}
+
+async function dbPatch(id, updates) {
+  const t = _tickets.find(x => x.id === id);
+  if (t) Object.assign(t, updates);
+  if (_online) {
+    try {
+      await _fbRef.child(String(id)).update(updates);
+    } catch(e) {
+      _online = false;
+      updateDbIndicator(false);
+      localStorage.setItem('topfarm_tickets_v3', JSON.stringify(_tickets));
+    }
+  } else {
+    localStorage.setItem('topfarm_tickets_v3', JSON.stringify(_tickets));
+  }
+}
+
+/* ── SESSION ── */
+let me = null;
+const ssLoad = () => { try { return JSON.parse(sessionStorage.getItem(SS_KEY)); } catch { return null; } };
+const ssSave = s  => sessionStorage.setItem(SS_KEY, JSON.stringify(s));
+const ssClear= () => sessionStorage.removeItem(SS_KEY);
+
+/* ── URGENCY ── */
+let selUrg = '';
+function pickUrg(el) {
+  document.querySelectorAll('.uop').forEach(o => o.className = 'uop');
+  el.classList.add('us-' + el.dataset.val);
+  selUrg = el.dataset.val;
+  document.getElementById('f-urg').value = selUrg;
+}
+
+/* ── JOBS LIST ── */
+const JOB_LIST = [
+  '0101 กำจัดวัชพืช','0102 ถอนหญ้า','0103 บรรจุกล้าพรมมรกต',
+  '0104 ตัดหญ้า - โรบิ้น','0105 บรรจุหัวแก๊ส','0106 บรรจุกล้ากำแพงเงิน',
+  '0107 เอาหญ้าโคนต้นออก','0108 พ่นยาฆ่าหญ้า','0109 พ่นน้ำส้มควันไม้',
+  '0110 ราดสาร','0112 ตัดหญ้าสี่ล้อ พร้อมกวาด','0113 ตัดหญ้าแทรกเตอร์',
+  '0114 กำจัดจอกแหน','0116 ถอนต้นเศรษฐี','0117 ถอนต้นกำแพงเงิน',
+  '0201 ใส่ปุ๋ยคอก','0202 ใส่ปุ๋ยหมัก','0203 ใส่ปุ๋ย 8-24-24',
+  '0204 ใส่ปุ๋ย 12-24-12','0205 ใส่ปุ๋ย 13-13-21','0206 ใส่ปุ๋ย 15-15-15',
+  '0207 ใส่ปุ๋ย 16-16-16','0208 ใส่ปุ๋ย','0209 ใส่ปุ๋ย 0-0-5',
+  '0210 ใส่ไคโลไมล์','0211 ใส่เปลือกถั่ว','0212 ใส่แกลบดิบ',
+  '0213 ใส่ปุ๋ย 16-20-0',
+  '0301 คลุมแกลบและใบสน','0302 คลุมโคน','0303 ใส่กาบมะพร้าว',
+  '0304 ใส่ขุยมะพร้าว','0305 รักษาต้น','0306 ค้ำกิ่งมะม่วง',
+  '0307 ค้ำต้น','0308 ตัดเหล็กดาม','0309 บังคับกิ่ง',
+  '0311 รดน้ำและให้ปุ๋ย','0312 ให้น้ำ','0313 ให้น้ำกิ่งตอน',
+  '0315 ตัดแต่งใบ','0316 ตัดแต่งกิ่ง','0317 ตัดแต่งใบและคัดดอกตกเกรด',
+  '0319 ปักหลัก','0321 คลุมชาแลน','0322 ตัดหลักดามกิ่ง',
+  '0323 ตัดแต่งใบเศรษฐีเพื่อจำหน่าย','0324 จัดสวนทรุดโทรม',
+  '0325 รดยากันเชื้อรา','0326 ตัดแต่งกิ่งพร้อมเก็บ','0327 ย้ายกล้าลงถุง 8x8',
+  '0402 ตัดชำ','0403 ตอนกิ่ง','0405 เปลี่ยนยอด',
+  '0406 เตรียมแปลงปลูก','0408 เตรียมวัสดุปลูก','0409 เตรียมกาบมะพร้าว',
+  '0410 เพาะเมล็ด','0411 เพาะกล้า','0412 ขุดหลุม',
+  '0414 บรรจุกล้าลงถุง','0415 บรรจุกล้าลงบล็อก','0416 ย้ายกล้าออกแดด',
+  '0417 บรรจุดินลงถุง','0418 ปลูกใหม่','0419 ปลูกซ่อม',
+  '0421 เติมดินผสม','0422 แยกต้น','0423 ผสมเกษร',
+  '0424 ปรับดิน','0426 เปลี่ยนถุง','0427 เก็บเมล็ดพันธุ์',
+  '0428 แกะเมล็ด','0431 ปลูกต้นไม้','0433 บรรจุกิ่ง',
+  '0435 บรรจุสต็อก','0436 บรรจุดินลงบล็อก','0437 บรรจุกล้าคริสม',
+  '0438 บรรจุกล้าเดหลี','0440 บรรจุกล้าเฟริ์น','0444 ตัดกาบมะพร้าว',
+  '0445 ผลิตดอก','0448 บรรจุดินลงถุง 5x5','0450 บรรจุกล้าเศรษฐี',
+  '0501 ตรวจโรคและแมลง','0502 กำจัดหนอนใย','0503 ดักแมลงวันทอง',
+  '0504 กำจัดหอย','0556 บรรจุกล้าขิงแดง',
+  '0601 ห่อผลผลิต','0602 เก็บผลผลิต','0603 บอนต้นขาย',
+  '0604 นำกล้าขึ้นรถขาย','0605 คัดกล้าจำหน่าย/เช็ดยอดสต็อก',
+  '0606 ตัดดอก','0607 ล้างกาแฟเตรียมทำแห้ง','0608 บ่มมะม่วง',
+  '0609 เก็บผลเสีย','0610 เก็บพับถุงห่อๆ','0612 บอนปลูก',
+  '0616 เก็บผลผลิตแตก','0617 ล้างหัวดอก',
+  '0701 ปลูกใหม่/ปลูกป่าอื่นๆ','0702 ถางป่าทำแนวกันไฟป่า',
+  '0703 กวาดแนวกันไฟป่า','0705 ดับไฟป่า',
+  '0807 ทาสีบ้านพัก','0808 ทาสีรั้วและซ่อมแซมรั้ว',
+  '0812 ขุดร่องสายไฟ','0813 ทาสีระเบียง','0814 เทปูนร่องน้ำ',
+  '0816 งานบริการยานต์','0817 ซ่อมบำรุงระบบประปา',
+  '0818 ถางหญ้าทำแนวสายไฟ','0819 ตรวจเช็ดจาน UBC',
+  '0820 บรรจุกระสอบทรายกั้นน้ำ','0821 ทาสีสะพาน','0822 ซ่อมเรือ',
+  '0824 ซ่อมถนนและทางเดิน','0825 ก่อกำแพงปูน',
+  '0826 ปรับปรุงโรงเก็บของช่าง','0827 ตรวจสอบความพร้อมบ้านพัก',
+  '0829 เปลี่ยนน้ำมันเครื่อง/กรองน้ำมัน','0830 เปลี่ยนลูกปืนปั๊มน้ำ',
+  '0831 กุหลังคาและผนังบ้านน็อกดาวน์','0832 ทำฝายน้ำล้น',
+  '0833 ทำสีช้างหิน','0834 ทำโคมไฟ','0836 ซ่อมระเบียง',
+  '0837 ติดตั้งเครื่องปั่น/ปั้มน้ำจักรกล','0838 ทำโรงเก็บปั้มน้ำ',
+  '0839 ส่งผลผลิตไร่ฯ ดอกไม้สด-ต้นไม้ดอกไม้ประดับ',
+  '0901 เลี้ยงปีใหม่','0902 ช่วยงานบ้าน','0903 กวาดบริเวณ',
+  '0904 กวาดใบไม้แห้ง','0905 เผาถ่าน','0906 ขุดขนดิน',
+  '0907 เอาใบไม้ออกจากหลังคาเนิส','0908 ให้อาหารปลา','0909 ขนขยะ',
+  '0910 เปลี่ยนไม้ประดับพร้อมตกแต่ง','0911 จัดสวนบ้านสวนริมธาร',
+  '0912 ทำปุ๋ยหมัก','0914 วันหยุด','0916 กำจัดวัชพืชอื่นๆ',
+  '0918 ขุดร่องระบายน้ำ','0919 กลับปุ๋ยหมัก','0920 ระบบน้ำ',
+  '0921 ทำซุ้ม','0922 ทำก้างปลากั้นน้ำ','0923 ปั่นกิ่ง',
+  '0925 จัดแจกัน','0926 ซ่อมหลังคา','0927 ล้างห้องน้ำ',
+  '0928 ขายผลผลิต','0929 ขนทราย','0930 จัดทำงบประมาณ',
+  '0931 จัดซื้อวัสดุสำนักงาน','0932 จัดซื้อวัสดุต่างๆ',
+  '0933 ซ่อมบ้านพักรับรอง',
+  '1001 แพ็คน้ำฝรั่งเตรียมจัดส่ง','1002 เทอะเมล็ด',
+  '1004 แพ็คแยมฝรั่งลงกล่อง','1009 ล้างขวดน้ำฝรั่งเตรียมการผลิต',
+  '1011 ทำน้ำฝรั่งทุกขั้นตอน','1012 ปั่นเนื้อฝรั่งบีบเมล็ดออก',
+  '1014 เคี่ยวแยม','1018 ปอกฝรั่ง','1019 เก็บ-คัดแยกผลฝรั่ง',
+  '1020 เตรียมวัสดุการผลิต','1032 งานทดลอง','1041 ทำความสะอาดบริเวณ',
+  '1057 คัดแยกเอกสาร ทำลาย','1058 ซื้ออาหาร รับแขก ส่งผลผลิต',
+  '1060 บริการยานพาหนะ','1063 ทำกะบะดอกไม้','1064 ตัดต้นไม้',
+  '1070 ตรวจสุขภาพโรงงาน',
+  '1101 จัดเตรียมและปรุงอาหาร','1103 ทำความสะอาดที่พัก',
+  '1104 จัดซื้อวัสดุงานบ้าน','1105 จัดซื้อข้าว และน้ำดื่ม',
+  '9033 ขนวัสดุ','9034 ขนหิน','9035 ขนดิน+ขนปุ๋ยหมัก',
+  '9036 ถอนพรมมรกต','9042 ตัดหลักดามต้น','9043 ตัดไม้ทำที่คลุมเรือน',
+  '9044 เคลียร์เนิส','9045 ทำโคน','9046 ปูหญ้าสนาม',
+  '9047 พ่นปุ๋ยทางใบ','9049 ซ่อมแซมเนิสเชอร์รี่',
+  '9050 จัดทำที่แขวนกระถางกล้วยไม้ฟาแลนด์',
+  '9051 ดองผลผลิต','9052 ขุดแยกขาย',
+  '9053 ล้างขวดน้ำฝรั่ง เรียงขึ้นชั้น','9054 ซ่อมตู้ลำโพง/ดูแลรักษา',
+  '9055 บรรจุกล้าไอริส','9056 บรรจุกล้ากาละเกตุ',
+  '9057 ทำโต๊ะเก้าอี้','9058 ซ่อมแซมห้องน้ำ','9059 เดินสายไฟถนน',
+  '9060 ช่วยงานรับแขก','9061 บรรจุกล้าลงกระถาง',
+  '9062 เคลียร์น้ำท่วม','9063 ซ่อมสะพาน',
+  '9065 ซ่อมกะบะ R4','9066 งานเป่าถนน','9067 งานปั้นปูน',
+];
+
+function buildJobOptions(selectEl, firstLabel) {
+  selectEl.innerHTML = `<option value="">${firstLabel}</option>` +
+    JOB_LIST.map(j => `<option value="${j}">${j}</option>`).join('');
+}
+
+/* ── INIT ── */
+window.addEventListener('DOMContentLoaded', () => {
+  buildJobOptions(document.getElementById('f-cat'), '— เลือกกิจกรรม —');
+  buildJobOptions(document.getElementById('fc'), 'ทุกกิจกรรม');
+  initDB();
+  me = ssLoad();
+  if (me) showApp(); else showLogin();
+});
+
+function showLogin() {
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+/* ── MULTI-SELECT (ผู้ร่วมงาน) ── */
+const MS_STAFF = [
+  {code:'001', name:'ปุ๊ด ใหม่คำน้อย'},
+  {code:'002', name:'จันทร์ติ๊บ เจริญทรัพย์'},
+  {code:'004', name:'ไข่แก้ว สุตา'},
+  {code:'006', name:'นะสอ จาปู'},
+  {code:'014', name:'ผัด จิตรเรือน'},
+  {code:'015', name:'บุญมี ฟตูน'},
+  {code:'024', name:'จำเรียม คงแดง'},
+  {code:'053', name:'นิดดี ดอยสูง'},
+  {code:'061', name:'จริยาภรณ์ ประเรืองลัย'},
+  {code:'075', name:'เพชร สุภาคม'},
+  {code:'107', name:'ปาลิภัสร์ จักรคำ'},
+  {code:'108', name:'ละเอียด เรี่ยลา'},
+  {code:'115', name:'รีเม๋ย ศรีคำมา'},
+  {code:'120', name:'ศรีมอญ สกิจกัน'},
+  {code:'121', name:'จันทร์งา จิตรเรือน'},
+  {code:'126', name:'อุดมศรี บัวปัน'},
+  {code:'131', name:'สาม ลุงยา'},
+  {code:'132', name:'นุน ลุงยา'},
+  {code:'134', name:'ละเอียด ตะงั๊'},
+  {code:'136', name:'นานคิด'},
+  {code:'137', name:'จายวิหลิ่นตั๊'},
+  {code:'138', name:'ออน'},
+  {code:'139', name:'ศรีวรรณ ศิริ'},
+  {code:'140', name:'ปัญญา ชุมทองสุข'},
+  {code:'141', name:'ป่าง'},
+];
+let _msSelected = new Set();
+
+function msRenderList(filter) {
+  const list = document.getElementById('ms-list');
+  const q = (filter || '').toLowerCase();
+  const items = MS_STAFF.filter(s =>
+    !q || s.name.toLowerCase().includes(q) || s.code.includes(q)
+  );
+  if (!items.length) {
+    list.innerHTML = '<div class="ms-none">ไม่พบรายชื่อ</div>';
+    return;
+  }
+  list.innerHTML = items.map(s => {
+    const chk = _msSelected.has(s.code) ? 'checked' : '';
+    return `<label class="ms-item">
+      <input type="checkbox" value="${s.code}" ${chk} onchange="msCheck(this,'${s.code}')">
+      <span class="ms-code">${s.code}</span>
+      <span>${s.name}</span>
+    </label>`;
+  }).join('');
+}
+
+function msCheck(el, code) {
+  if (el.checked) _msSelected.add(code); else _msSelected.delete(code);
+  msUpdateValue();
+}
+
+function msUpdateValue() {
+  const names = MS_STAFF.filter(s => _msSelected.has(s.code)).map(s => s.name);
+  document.getElementById('f-planter').value = names.join(', ');
+  const lbl = document.getElementById('ms-label');
+  if (names.length === 0) {
+    lbl.textContent = '— เลือกผู้ร่วมงาน —';
+    lbl.classList.remove('has-val');
+  } else {
+    lbl.textContent = names.join(', ');
+    lbl.classList.add('has-val');
+  }
+}
+
+function msToggle() {
+  const panel = document.getElementById('ms-panel');
+  const trigger = document.getElementById('ms-trigger');
+  const isOpen = panel.classList.contains('open');
+  if (isOpen) {
+    msClose();
+  } else {
+    panel.classList.add('open');
+    trigger.classList.add('open');
+    document.getElementById('ms-search').value = '';
+    msRenderList('');
+    document.getElementById('ms-search').focus();
+  }
+}
+
+function msFilter(q) { msRenderList(q); }
+
+function msClose() {
+  document.getElementById('ms-panel').classList.remove('open');
+  document.getElementById('ms-trigger').classList.remove('open');
+}
+
+function msReset() {
+  _msSelected = new Set();
+  msUpdateValue();
+  msClose();
+}
+
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('ms-planter-wrap');
+  if (wrap && !wrap.contains(e.target)) msClose();
+});
+
+function showApp() {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('tb-name').textContent = me.name;
+  document.getElementById('tb-role').textContent = me.role === 'boss' ? 'หัวหน้า' : 'ทีมงาน';
+  document.getElementById('f-name').value = me.name;
+  document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+  showPage('form', document.getElementById('tb-form'));
+  pickUrg(document.querySelector('.uop[data-val="normal"]'));
+}
+
+/* ── LOGIN ── */
+function doLogin() {
+  const name = document.getElementById('ln').value.trim();
+  const pwd  = document.getElementById('lp').value;
+  if (!name) { lerr('กรุณากรอกชื่อของคุณ'); return; }
+  if (!pwd)  { lerr('กรุณากรอกรหัสผ่าน'); return; }
+  let role = null;
+  if (pwd === BOSS_PWD) role = 'boss';
+  else if (pwd === TEAM_PWD) role = 'team';
+  else { lerr('รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่'); return; }
+  document.getElementById('lerr').style.display = 'none';
+  me = { name, role };
+  ssSave(me);
+  showApp();
+}
+
+function lerr(msg) {
+  const el = document.getElementById('lerr');
+  el.style.display = 'flex';
+  document.getElementById('lerr-msg').textContent = msg;
+}
+
+function togglePwd() {
+  const f = document.getElementById('lp');
+  f.type = f.type === 'password' ? 'text' : 'password';
+}
+
+function doLogout() {
+  ssClear(); me = null; selUrg = '';
+  document.getElementById('ln').value = '';
+  document.getElementById('lp').value = '';
+  document.getElementById('lerr').style.display = 'none';
+  showLogin();
+}
+
+/* ── PAGE NAV ── */
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'dash') renderDash();
+}
+
+/* ── SUBMIT FORM ── */
+let seq = 0;
+async function submitForm(e) {
+  e.preventDefault();
+  const v = id => document.getElementById(id).value.trim();
+  if (!v('f-planter'))  { toast('กรุณากรอกชื่อผู้ร่วมงาน', 'terr'); return; }
+  if (!v('f-details'))  { toast('กรุณากรอกรายละเอียดงาน', 'terr'); return; }
+  if (!v('f-plot'))     { toast('กรุณาเลือกแปลง', 'terr'); return; }
+  if (!v('f-cat'))      { toast('กรุณาเลือกกิจกรรม', 'terr'); return; }
+  if (!v('f-mat'))      { toast('กรุณากรอกวัตถุดิบที่ใช้', 'terr'); return; }
+  if (!v('f-date'))     { toast('กรุณาเลือกวันที่', 'terr'); return; }
+  if (!v('f-start'))    { toast('กรุณาเลือกเวลาเริ่มต้น', 'terr'); return; }
+  if (!v('f-end'))      { toast('กรุณาเลือกเวลาสิ้นสุด', 'terr'); return; }
+  if (v('f-end') <= v('f-start')) { toast('เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มต้น', 'terr'); return; }
+  if (!selUrg)          { toast('กรุณาเลือกระดับความเร่งด่วน', 'terr'); return; }
+
+  const all = db();
+  seq = Math.max(seq, ...all.map(t => t.seq||0), 0) + 1;
+
+  const ticket = {
+    id: Date.now(), seq,
+    submitter: me.name,
+    planter:   v('f-planter'),
+    details:   v('f-details'),
+    plot:      v('f-plot'),
+    category:  v('f-cat'),
+    materials: v('f-mat'),
+    expected:  v('f-expect'),
+    date:      v('f-date'),
+    startTime: v('f-start'),
+    endTime:   v('f-end'),
+    urgency:   selUrg,
+    status:    'pending',
+    createdAt: new Date().toLocaleString('th-TH', { dateStyle:'medium', timeStyle:'short' }),
+  };
+
+  await dbAdd(ticket);
+
+  const tid = `TF-${String(seq).padStart(4,'0')}`;
+
+  // reset
+  document.getElementById('the-form').reset();
+  document.getElementById('f-name').value = me.name;
+  document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+  pickUrg(document.querySelector('.uop[data-val="normal"]'));
+  msReset();
+
+  toast(`✓ ส่งคำขอ ${tid} สำเร็จ!`, 'tok');
+  setTimeout(() => {
+    showPage('dash', document.getElementById('tb-dash'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 800);
+}
+
+/* ── RENDER DASHBOARD ── */
+function renderDash() {
+  const all = db();
+
+  document.getElementById('st-all').textContent    = all.length;
+  document.getElementById('st-pend').textContent   = all.filter(t=>t.status==='pending').length;
+  document.getElementById('st-doing').textContent  = all.filter(t=>t.status==='doing').length;
+  document.getElementById('st-done').textContent   = all.filter(t=>t.status==='done').length;
+  document.getElementById('st-cancel').textContent = all.filter(t=>t.status==='cancelled').length;
+
+  const q  = document.getElementById('fq').value.toLowerCase();
+  const fp = document.getElementById('fp').value;
+  const fc = document.getElementById('fc').value;
+  const fs = document.getElementById('fs').value;
+  const fu = document.getElementById('fu').value;
+
+  let list = all;
+  if (q)  list = list.filter(t=>(t.submitter+' '+t.details+' '+t.planter+' '+t.materials+' '+t.category).toLowerCase().includes(q));
+  if (fp) list = list.filter(t=>t.plot===fp);
+  if (fc) list = list.filter(t=>t.category===fc);
+  if (fs) list = list.filter(t=>t.status===fs);
+  if (fu) list = list.filter(t=>t.urgency===fu);
+
+  document.getElementById('cnt').textContent = list.length + ' รายการ';
+  const tbody = document.getElementById('dtbody');
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="12"><div class="empty"><span class="empty-ic">📭</span>ไม่พบรายการที่ตรงกับเงื่อนไข</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map(t => {
+    const tid = `TF-${String(t.seq||t.id).slice(-4).padStart(4,'0')}`;
+    const ucl = UCL[t.urgency] || 'un';
+    const scl = SCL[t.status]  || 'sp';
+
+    const stEl = `<select class="ssel ${scl}" onchange="setStatus(${t.id},this)">
+           <option value="pending"   ${t.status==='pending'   ?'selected':''}>⏳ รอดำเนินการ</option>
+           <option value="doing"     ${t.status==='doing'     ?'selected':''}>▶ กำลังทำ</option>
+           <option value="done"      ${t.status==='done'      ?'selected':''}>✅ เสร็จแล้ว</option>
+           <option value="cancelled" ${t.status==='cancelled' ?'selected':''}>❌ ยกเลิก</option>
+         </select>`;
+
+    return `<tr>
+      <td style="padding-left:1.1rem;"><span class="tid">${esc(tid)}</span></td>
+      <td style="font-size:.8rem;font-weight:600;">${esc(t.submitter||'')}</td>
+      <td><span class="clip" title="${esc(t.details)}">${esc(t.details)}</span></td>
+      <td class="tc"><span class="pbadge p${t.plot||''}">${esc(t.plot||'—')}</span></td>
+      <td><span class="catb">${esc(t.category||'—')}</span></td>
+      <td style="font-size:.8rem;">${esc(t.planter||'—')}</td>
+      <td><span class="clip" title="${esc(t.materials)}">${esc(t.materials||'')}</span></td>
+      <td><span class="clip" title="${esc(t.expected)}">${esc(t.expected||'—')}</span></td>
+      <td style="font-size:.78rem;color:#64748b;">${fmtD(t.date)}</td>
+      <td style="font-size:.78rem;">${esc(t.startTime||'')} – ${esc(t.endTime||'')}</td>
+      <td><span class="ubadge ${ucl}">${ULB[t.urgency]||''}</span></td>
+      <td>${stEl}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── STATUS UPDATE ── */
+async function setStatus(id, sel) {
+  const s = sel.value;
+  sel.className = 'ssel ' + (SCL[s]||'sp');
+  await dbPatch(id, { status: s });
+  if (!_online) renderDash();
+  toast(`อัปเดตเป็น "${SLB[s]}" สำเร็จ`, 'tok');
+}
+
+/* ── FILTERS ── */
+function clearF() {
+  ['fq','fp','fc','fs','fu'].forEach(id => { const el=document.getElementById(id); if(el)el.value=''; });
+  renderDash();
+}
+
+/* ── EXCEL EXPORT ── */
+function exportExcel() {
+  const all = db();
+  if (!all.length) { toast('ไม่มีข้อมูลสำหรับ Export', 'terr'); return; }
+
+  const rows = all.map((t,i) => ({
+    'ลำดับ':          i+1,
+    'Ticket No':      `TF-${String(t.seq||t.id).slice(-4).padStart(4,'0')}`,
+    'ชื่อผู้ส่งคำขอ': t.submitter||'',
+    'ผู้ร่วมงาน':     t.planter||'',
+    'รายละเอียดงาน':  t.details||'',
+    'แปลง':          t.plot||'',
+    'กิจกรรม':            t.category||'',
+    'วัตถุดิบที่ใช้':     t.materials||'',
+    'ผลลัพท์ที่คาดไว้':  t.expected||'',
+    'วันที่':        fmtD(t.date),
+    'เวลาเริ่มต้น':   t.startTime||'',
+    'เวลาสิ้นสุด':   t.endTime||'',
+    'ความเร่งด่วน':  ULB[t.urgency]||'',
+    'สถานะ':         SLB[t.status]||'',
+    'วันที่สร้าง':   t.createdAt||'',
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:6},{wch:10},{wch:20},{wch:20},{wch:40},{wch:8},{wch:16},{wch:30},{wch:35},{wch:12},{wch:11},{wch:11},{wch:13},{wch:15},{wch:22}];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Job Tickets');
+
+  const d = new Date();
+  const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `Topfarm_Ticket_${stamp}.xlsx`);
+  toast('✓ Export Excel สำเร็จ!', 'tok');
+}
+
+/* ── HELPERS ── */
+function fmtD(s) {
+  if (!s) return '';
+  try { const [y,m,d]=s.split('-'); return `${d}/${m}/${y}`; } catch { return s; }
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let _tt;
+function toast(msg, cls='tok') {
+  const el = document.getElementById('toast');
+  el.className = `toast ${cls}`;
+  el.textContent = msg;
+  void el.offsetWidth;
+  el.classList.add('show');
+  clearTimeout(_tt);
+  _tt = setTimeout(() => el.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
